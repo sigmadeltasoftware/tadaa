@@ -2,7 +2,7 @@
 
 Tado V3+ smart radiator valves communicate with a single Internet Bridge over 868 MHz using IEEE 802.15.4 / 6LoWPAN. The bridge has **no mesh or relay capability**. In multi-floor homes with thick walls, top-floor valves frequently lose connectivity.
 
-**Tadaa** is a transparent 868 MHz relay that extends range by receiving and retransmitting Tado packets using a Raspberry Pi and a CC1101 radio module (~$10 total).
+**Tadaa** is a transparent 868 MHz relay that extends range by receiving and retransmitting Tado packets using a Raspberry Pi and a CC1101 radio module.
 
 ## How It Works
 
@@ -46,28 +46,15 @@ This is the first public documentation of the Tado V3+ 868 MHz radio parameters:
 
 The Tado bridge uses the CC1101 default sync word `0xD391` but transmits it **byte-swapped** as `0x91D3`. This was discovered by probing 156 combinations of sync words, data rates, and modulations. The `tadaa-probe` tool automates this process.
 
-## Hardware
+## Recommended Hardware: CC1101 RPi Shield by Hallard
 
-### Bill of Materials
+The easiest way to connect a CC1101 to a Raspberry Pi is the [CC1101 Mini Shield by Hallard](https://github.com/hallard/cc1101-e07-pi), which plugs directly onto the GPIO header -- no soldering or jumper wires needed.
 
-| Component | Part | Cost |
-|---|---|---|
-| SBC | Raspberry Pi 4 (or any RPi with SPI) | ~$35 |
-| Radio | CC1101 868 MHz SPI module | ~$5-10 |
-| Power | USB power supply | ~$5 |
-| **Total** | | **~$45-50** |
+**Buy it here:** [CC1101 Mini Shield on Tindie](https://www.tindie.com/products/hallard/cc1101-mini-shield-for-raspberry-pi/) (~$12)
 
-### Wiring (CC1101 to RPi GPIO)
+> **Note:** The shield ships with a 433 MHz antenna by default. For Tado you need an **868 MHz** version or swap the antenna for an 868 MHz one.
 
-| CC1101 Pin | RPi Pin | GPIO |
-|---|---|---|
-| VCC | Pin 17 | 3.3V |
-| GND | Pin 20 | GND |
-| MOSI | Pin 19 | GPIO 10 (SPI0_MOSI) |
-| MISO | Pin 21 | GPIO 9 (SPI0_MISO) |
-| SCK | Pin 23 | GPIO 11 (SPI0_SCLK) |
-| CS | Pin 24 | GPIO 8 (SPI0_CE0) |
-| GDO0 | Pin 22 | GPIO 25 |
+Any CC1101 868 MHz SPI module will work -- the shield just makes wiring easier.
 
 ## Installation
 
@@ -103,39 +90,17 @@ with CC1101Driver() as d:
 
 ## Usage
 
-### Frequency Scan
+### Run as a Service
 
-Find active 868 MHz channels:
-
-```bash
-tadaa-scan --start 868000000 --end 868600000 --step 25000
-```
-
-### Auto-Detect Radio Config
-
-Probe for the correct sync word, data rate, and modulation:
+The simplest way to run the relay:
 
 ```bash
-tadaa-probe -f 868300000 -d 5 -o probe_results.json
+sudo cp deploy/tadaa-relay.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now tadaa-relay
 ```
 
-Change a temperature on the Tado app during the scan to generate radio traffic.
-
-### Packet Sniffer
-
-Capture and decode IEEE 802.15.4 packets:
-
-```bash
-tadaa-sniff -f 868300000 -d 120 -o capture.jsonl
-```
-
-### Relay
-
-Start the transparent relay:
-
-```bash
-tadaa-relay -f 868300000 --stats-port 8080
-```
+This starts the relay at 868.3 MHz with an HTTP stats endpoint on port 8080. It auto-starts on boot and restarts on crash.
 
 Monitor via the stats endpoint:
 
@@ -149,17 +114,45 @@ curl http://localhost:8080/stats
   "packets_relayed": 14823,
   "packets_dropped": 312,
   "last_packet_rssi": -67.5,
-  "known_devices": ["3fcf", "f057", "1025", ...],
+  "known_devices": ["3fcf", "f057", "1025", "..."],
   "errors": 0
 }
 ```
 
-### Run as a Service
+### Advanced
+
+#### Manual Relay
+
+Start the relay manually (foreground):
 
 ```bash
-sudo cp deploy/tadaa-relay.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now tadaa-relay
+tadaa-relay -f 868300000 --stats-port 8080
+```
+
+#### Frequency Scan
+
+Find active 868 MHz channels:
+
+```bash
+tadaa-scan --start 868000000 --end 868600000 --step 25000
+```
+
+#### Auto-Detect Radio Config
+
+Probe for the correct sync word, data rate, and modulation:
+
+```bash
+tadaa-probe -f 868300000 -d 5 -o probe_results.json
+```
+
+Change a temperature on the Tado app during the scan to generate radio traffic.
+
+#### Packet Sniffer
+
+Capture and decode IEEE 802.15.4 packets:
+
+```bash
+tadaa-sniff -f 868300000 -d 120 -o capture.jsonl
 ```
 
 ## Relay Design
@@ -170,10 +163,6 @@ sudo systemctl enable --now tadaa-relay
 - **Direction:** Bidirectional (valve-to-bridge and bridge-to-valve)
 - **ACK handling:** 90% of Tado frames don't request ACKs, so transparent relay works without ACK spoofing
 - **Duty cycle:** Well within the EU 868 MHz 1% duty cycle limit
-
-## Placement
-
-Position the relay at a midpoint between the bridge and the problem valves -- typically a stairway landing in a multi-floor home. The relay needs line-of-sight (or at most one wall) to both the bridge and the distant valves.
 
 ## Regulatory Notes
 

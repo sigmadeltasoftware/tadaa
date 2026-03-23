@@ -1,0 +1,17 @@
+[Unit]
+Description=Tadaa 868 MHz Relay Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/tadaa
+ExecStart=/opt/tadaa/venv/bin/tadaa-relay -f 868300000 --stats-port 8080
+Restart=always
+RestartSec=5
+# WatchdogSec requires sd_notify integration — disabled for now
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

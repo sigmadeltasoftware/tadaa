@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tadaa"
+version = "0.1.0"
+description = "Tado V3+ 868 MHz relay node — extend radio range for smart radiator valves"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "spidev>=3.6",
+    "RPi.GPIO>=0.7.1",
+    "aiohttp>=3.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-aiohttp>=1.0",
+]
+
+[project.scripts]
+tadaa-scan = "tadaa.cli:scan"
+tadaa-sniff = "tadaa.cli:sniff"
+tadaa-relay = "tadaa.cli:relay"
+tadaa-probe = "tadaa.cli:probe"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

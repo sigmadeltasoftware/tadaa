@@ -84,6 +84,28 @@ class RadioConfig:
 
         return best_mantissa, best_exponent
 
+    def calc_bandwidth_reg(self) -> int:
+        """Return the 4-bit value for MDMCFG4[7:4] (channel filter bandwidth).
+
+        Formula (datasheet section 13):
+            BW = f_XOSC / (8 * (4 + BW_M) * 2^BW_E)
+        where BW_E is bits [7:6] and BW_M is bits [5:4] of the nibble.
+        The 4-bit value is ``(BW_E << 2) | BW_M``.
+        """
+        target = self.bandwidth_khz * 1000.0
+        best_val = 0
+        best_error = float("inf")
+
+        for bw_e in range(4):
+            for bw_m in range(4):
+                actual = XTAL_FREQ_HZ / (8.0 * (4 + bw_m) * (1 << bw_e))
+                error = abs(actual - target)
+                if error < best_error:
+                    best_error = error
+                    best_val = (bw_e << 2) | bw_m
+
+        return best_val
+
 
 # ---------------------------------------------------------------------------
 # Scan configuration presets

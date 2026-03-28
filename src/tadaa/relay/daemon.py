@@ -142,14 +142,17 @@ class RelayDaemon:
         # Frequency.
         drv.set_frequency_hz(cfg.frequency_hz)
 
-        # Data rate.
+        # Data rate + channel filter bandwidth.
         drate_m, drate_e = cfg.calc_data_rate_regs()
         drv.write_register(ConfigReg.MDMCFG3, drate_m)
-        # Preserve upper nibble (channel filter BW) — set to 0 for defaults.
-        drv.write_register(ConfigReg.MDMCFG4, drate_e & 0x0F)
+        # Upper nibble = channel filter BW, lower nibble = data rate exponent.
+        bw_bits = cfg.calc_bandwidth_reg()
+        drv.write_register(ConfigReg.MDMCFG4, (bw_bits << 4) | (drate_e & 0x0F))
 
-        # Modulation.
-        drv.write_register(ConfigReg.MDMCFG2, cfg.modulation)
+        # Modulation + sync mode: enable 16/16 sync word detection.
+        # cfg.modulation only sets bits [6:4]; OR with 0x02 for 16/16 sync
+        # qualifier so the CC1101 filters by sync word in hardware.
+        drv.write_register(ConfigReg.MDMCFG2, cfg.modulation | 0x02)
 
         # Deviation.
         dev_m, dev_e = cfg.calc_deviation_regs()
